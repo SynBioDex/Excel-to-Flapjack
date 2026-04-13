@@ -80,14 +80,15 @@ class X2F:
 
     def create_df(self):
 
-        for obj in self.types:
+        for sheet_name, fj_object_name in self.sheet_object_hash_map.items():
+            print("Sheet name:", sheet_name, "FJ object name:", fj_object_name)
             # read in the conversion sheet for xdc col name to flapjack name 
                 # for current obj
-            fj_conv_sht_obj = self.fj_conv_sht.loc[(self.fj_conv_sht['Sheet Name'] == obj)]
+            fj_conv_sht_obj = self.fj_conv_sht.loc[(self.fj_conv_sht['Sheet Name'] == sheet_name)]
             fj_conv_sht_obj = fj_conv_sht_obj.set_index('ColName').to_dict('index')
 
             # read in current obj sheet
-            obj_df = self.xls.parse(obj, skiprows=0, index_col=f'{obj} ID')
+            obj_df = self.xls.parse(sheet_name, skiprows=self.index_skiprows, index_col=f'{fj_object_name} ID')
             cols = list(obj_df.columns)
 
             # drop cols not used by fj and rename ones that are
@@ -101,10 +102,17 @@ class X2F:
             
             obj_df = obj_df.drop(columns=drop_cols)
             obj_df.columns = new_cols
-            obj_df['object'] = obj
+            obj_df['object'] = fj_object_name
             obj_df['flapjackid'] = ''
 
-            self.df = self.df.append(obj_df)
+            self.df = pd.concat([self.df,obj_df]) #,ignore_index=True) #self.df.append(obj_df)
+
+        if self.sbol_hash_map is not None:
+            # add a column to the revamp_df for sbol_uri
+            self.df['sbol_uri'] = ''
+            # add sbol_uri to every row that has the same index as the key in sbol_hash_map
+            for key, value in self.sbol_hash_map.items():
+                self.df.loc[key, 'sbol_uri'] = value
 
     
     def upload_studies(self, overwrite=False, confirm=False):
